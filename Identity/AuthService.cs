@@ -1,4 +1,5 @@
-﻿using auth.Repositories;
+﻿using auth.Config;
+using auth.Repositories;
 using JwtAuth.Constants;
 using JwtAuth.ExceptionHandling;
 using JwtAuth.Identity.Jwts;
@@ -13,7 +14,7 @@ namespace JwtAuth.Identity
     {
         void InitAdminAccount();
 
-        JwtTokenResponse Login(LoginRequest request);
+        JwtTokenResponse Login(LoginRequest request, JwtTokenAudience jwtTokenAudience);
 
         JwtTokenResponse RefreshToken(string refreshToken);
 
@@ -29,15 +30,15 @@ namespace JwtAuth.Identity
             throw new NotImplementedException();
         }
 
-        public JwtTokenResponse Login(LoginRequest request)
+        public JwtTokenResponse Login(LoginRequest request, JwtTokenAudience jwtTokenAudience)
         {
             var userTokenInfo = GetUserTokenInfoLogin(request);
             List<KeyValuePair<string, object>> userTokenInfoClaims = [];
             userTokenInfoClaims.AddRange([
                 new KeyValuePair<string, object>("user_token_info", userTokenInfo.ToStringJson())
             ]);
-            var accessToken = JwtManager.GenerateAccessToken(userTokenInfoClaims, true, userTokenInfo.TokenTimes);
-            var refreshToken = JwtManager.GenerateRefreshToken(accessToken, userTokenInfoClaims,
+            var accessToken = JwtManager.GenerateAccessToken(userTokenInfoClaims, GlobalSettings.AppSettings.JwtAudience[(int)jwtTokenAudience], true, userTokenInfo.TokenTimes);
+            var refreshToken = JwtManager.GenerateRefreshToken(accessToken, userTokenInfoClaims, GlobalSettings.AppSettings.JwtAudience[(int)jwtTokenAudience],
                 mustVerifySignature: true, tokenTimes: userTokenInfo.TokenTimes);
             var token = new JwtToken
             {

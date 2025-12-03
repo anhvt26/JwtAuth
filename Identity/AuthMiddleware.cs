@@ -1,120 +1,112 @@
-﻿using auth.Database;
+﻿using JwtAuth.Database;
 using JwtAuth.ExceptionHandling;
-using JwtAuth.Identity.Jwts;
+using JwtAuth.Identity;
+using JwtAuth.Identity.Models;
 using JwtAuth.Security.Jwts;
 using JwtAuth.Utilities;
+using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
-using System.Diagnostics.CodeAnalysis;
 using System.Security.Claims;
 
-namespace JwtAuth.Identity
+public class AuthMiddleware(RequestDelegate next)
 {
-    public class AuthMiddleware(RequestDelegate next)
+    public async Task InvokeAsync(HttpContext context)
     {
-        public async Task InvokeAsync(HttpContext context)
+        var logger = context.RequestServices.GetRequiredService<ILogger<AuthMiddleware>>();
+
+        var endpoint = context.GetEndpoint();
+        var authAttr = endpoint?.Metadata.GetMetadata<AuthorisedAttribute>();
+        bool requiresAuth = authAttr?.Required ?? false;
+
+        var allowedAudiencesAttr = endpoint?.Metadata.GetMetadata<AllowedAudiencesAttribute>();
+        string[] allowedAudiences = allowedAudiencesAttr?.Audiences!; 
+
+        if (!requiresAuth)
         {
-            var logger = context.RequestServices.GetRequiredService<ILogger<AuthMiddleware>>();
-
-            var endpoint = context.GetEndpoint();
-            var authAttributes = endpoint?.Metadata.GetOrderedMetadata<AuthorisedAttribute>();
-            var requiresAuth = false;
-            AuthorisedAttribute? authorisedAttribute = null;
-            if (authAttributes is { Count: > 0 })
+            if (TryBuildUser(context, logger, allowedAudiences, out var user))
             {
-                authorisedAttribute = authAttributes[^1];
-                requiresAuth = authorisedAttribute.Required;
+                AttachPrincipal(context, user);
             }
-            if (!requiresAuth || authorisedAttribute == null)
-            {
-                if (ClaimUserFromToken(context, logger, out var user))
-                {
-                    var claims = new List<Claim>
-                    {
-                        new(ClaimTypes.UserData, user.ToStringJson()),
-                        new("UserSpecialPermission", "0")
-                    };
-
-                    var identity = new ClaimsIdentity(claims, "Bearer");
-                    context.User.AddIdentity(identity);
-                }
-            }
-            else
-            {
-                await ValidateToken(context, authorisedAttribute, logger);
-            }
-            await next(context);
+        }
+        else
+        {
+            var user = ValidateAndGetUser(context, logger, allowedAudiences);
+            AttachPrincipal(context, user);
         }
 
-        private static Task ValidateToken(HttpContext context, AuthorisedAttribute authAttribute, ILogger<AuthMiddleware> logger)
+        await next(context);
+    }
+
+    private static void AttachPrincipal(HttpContext context, UserJwtTokenInfo user)
+    {
+        var claims = new List<Claim>
         {
-            var request = context.Request;
+            new(ClaimTypes.UserData, user.ToStringJson())
+        };
 
-            var requestApi = request.Path.ToString();
+        var identity = new ClaimsIdentity(claims, "Bearer");
+        context.User.AddIdentity(identity);
+    }
 
-            // "Bearer + token"
-            var requestHeader = request.Headers.Authorization.ToString();
-
-            if (string.IsNullOrEmpty(requestHeader) || !requestHeader.StartsWith("Bearer "))
-                throw new ErrorException(ErrorCode.UN_AUTHORIZED, "Token thiếu hoặc không hợp lệ");
-
-            //token string without "Bearer"
-            var token = requestHeader["Bearer ".Length..].Trim();
-
-            UserJwtTokenInfo? userInfo;
-            try
-            {
-                var tokenClaims = JwtManager.ClaimTokens(token, false);
-                if (requestApi != "/api/Auth/refresh" && tokenClaims.Type != JwtTokenType.ACCESS ||
-                    requestApi == "/api/Auth/refresh" && tokenClaims.Type != JwtTokenType.REFRESH ||
-                    !ClaimUserFromToken(context, logger, out userInfo))
-                    throw new ErrorException(ErrorCode.UN_AUTHORIZED, "Token không hợp lệ");
-            }
-            catch (Exception ex)
-            {
-                logger.LogError(ex, "Error validating token");
-                throw new ErrorException(ErrorCode.UN_AUTHORIZED, "Token không hợp lệ");
-            }
-
-            var claims = new List<Claim>
-            {
-                new (ClaimTypes.UserData, userInfo.ToStringJson())
-            };
-
-            var identity = new ClaimsIdentity(claims, "Bearer");
-            context.User.AddIdentity(identity);
-            return Task.CompletedTask;
-        }
-
-        private static bool ClaimUserFromToken(HttpContext context, ILogger<AuthMiddleware> logger, [NotNullWhen(true)] out UserJwtTokenInfo? userInfo)
+    private static bool TryBuildUser(HttpContext context, ILogger logger, string[] allowedAudiences, out UserJwtTokenInfo userInfo)
+    {
+        userInfo = null!;
+        try
         {
-            userInfo = null;
-            try
-            {
-                var auHeader = context.Request.Headers.Authorization.ToString();
-                if (string.IsNullOrWhiteSpace(auHeader) || !auHeader.StartsWith("Bearer "))
-                    return false;
+            var token = ExtractBearerToken(context);
+            if (string.IsNullOrWhiteSpace(token)) return false;
 
-                var token = auHeader["Bearer ".Length..].Trim();
-                if (string.IsNullOrWhiteSpace(token))
-                    return false;
+            var tokenClaims = JwtManager.ClaimTokens(token, false);
+            if (!allowedAudiences.Contains(tokenClaims.Audience)) return false;
 
-                var userTokenInfo = JwtManager.ClaimUserTokenInfo(token, false);
-                var tokenTimes = context.RequestServices.GetRequiredService<AppDbContext>().Users
-                    .AsNoTracking()
-                    .FirstOrDefault(usr => usr.Uuid == userTokenInfo.UserUuid)
-                    ?.TokenTimes ?? 0;
+            var db = context.RequestServices.GetRequiredService<AppDbContext>();
+            var tokenTimes = db.Users.AsNoTracking()
+                                     .Where(u => u.Uuid == tokenClaims.UserUuid)
+                                     .Select(u => u.TokenTimes)
+                                     .FirstOrDefault();
 
-                if (!JwtManager.ValidateToken(token, tokenTimes: tokenTimes))
-                    return false;
-
-                userInfo = userTokenInfo;
-                return true;
-            }
-            catch (System.Exception ex)
-            {
-                logger.LogError(ex, "Error claiming user from token");
+            if (JwtManager.ValidateToken(token, tokenClaims.Audience, tokenClaims.Type, tokenTimes: tokenTimes) == null)
                 return false;
-            }
+
+            userInfo = JwtManager.ClaimUserTokenInfo(token, false);
+            return true;
         }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Error claiming user from token");
+            return false;
+        }
+    }
+
+    private static UserJwtTokenInfo ValidateAndGetUser(HttpContext context, ILogger logger, string[] allowedAudiences)
+    {
+        var token = ExtractBearerToken(context);
+
+        if (string.IsNullOrWhiteSpace(token))
+            throw new ErrorException(ErrorCode.UN_AUTHORIZED, "Token thiếu hoặc không hợp lệ");
+
+        var tokenClaims = JwtManager.ClaimTokens(token, false);
+
+        if (!allowedAudiences.Contains(tokenClaims.Audience))
+            throw new ErrorException(ErrorCode.UN_AUTHORIZED, "Audience không hợp lệ");
+
+        var db = context.RequestServices.GetRequiredService<AppDbContext>();
+        var tokenTimes = db.Users.AsNoTracking()
+                                 .Where(u => u.Uuid == tokenClaims.UserUuid)
+                                 .Select(u => u.TokenTimes)
+                                 .FirstOrDefault();
+
+        if (JwtManager.ValidateToken(token, tokenClaims.Audience, tokenClaims.Type, tokenTimes: tokenTimes) == null)
+            throw new ErrorException(ErrorCode.UN_AUTHORIZED, "Token không hợp lệ");
+
+        return JwtManager.ClaimUserTokenInfo(token, false);
+    }
+
+    private static string ExtractBearerToken(HttpContext context)
+    {
+        var header = context.Request.Headers.Authorization.ToString();
+        if (string.IsNullOrWhiteSpace(header) || !header.StartsWith("Bearer "))
+            return "";
+        return header["Bearer ".Length..].Trim();
     }
 }

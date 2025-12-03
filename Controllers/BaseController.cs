@@ -7,4 +7,5 @@ namespace JwtAuth.Controllers;
 //[Route("api/v{version:apiVersion}/[controller]")]
 [ApiController]
 [Authorised]
+[AllowedAudiences("web", "mobile")]
 public class BaseController : ControllerBase;

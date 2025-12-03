@@ -1,9 +1,9 @@
 ﻿using System;
 using System.Collections.Generic;
+using JwtAuth.Database.Entity;
 using Microsoft.EntityFrameworkCore;
-using auth.Database.Entity;
 
-namespace auth.Database;
+namespace JwtAuth.Database;
 
 public partial class AppDbContext : DbContext
 {
@@ -197,6 +197,9 @@ public partial class AppDbContext : DbContext
             entity.Property(e => e.Code)
                 .HasMaxLength(30)
                 .HasColumnName("code");
+            entity.Property(e => e.Count)
+                .HasColumnType("int(22)")
+                .HasColumnName("count");
             entity.Property(e => e.CreatedAt)
                 .HasDefaultValueSql("current_timestamp()")
                 .HasColumnType("timestamp")

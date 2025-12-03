@@ -1,4 +1,7 @@
-﻿namespace auth.Database.Entity;
+﻿using System;
+using System.Collections.Generic;
+
+namespace JwtAuth.Database.Entity;
 
 public partial class User
 {
@@ -32,6 +35,8 @@ public partial class User
     public string? ProvinceId { get; set; }
 
     public string? WardId { get; set; }
+
+    public int? Count { get; set; }
 
     public string? Address { get; set; }
 

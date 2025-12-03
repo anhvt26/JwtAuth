@@ -1,5 +1,7 @@
-﻿using Newtonsoft.Json;
+﻿using JwtAuth.Security.Jwts;
+using Newtonsoft.Json;
 using System.ComponentModel;
+using System.Security.Claims;
 
 namespace JwtAuth.Utilities
 {
@@ -21,6 +23,12 @@ namespace JwtAuth.Utilities
         public static T? DeserializeJson<T>(this string? data)
         {
             return !string.IsNullOrWhiteSpace(data) ? JsonConvert.DeserializeObject<T>(data) : default;
+        }
+
+        public static UserJwtTokenInfo? GetUserTokenInfo(this ClaimsPrincipal user)
+        {
+            var userInfo = user.FindFirst(ClaimTypes.UserData)?.Value;
+            return userInfo?.DeserializeJson<UserJwtTokenInfo>();
         }
     }
 }

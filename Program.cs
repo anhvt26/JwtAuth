@@ -1,8 +1,9 @@
 ﻿using auth.Config;
-using auth.Database;
 using auth.Extensions;
 using auth.Repositories;
 using auth.Services;
+using JwtAuth.Config;
+using JwtAuth.Database;
 using JwtAuth.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.OpenApi.Models;

@@ -1,4 +1,6 @@
-﻿namespace JwtAuth.Identity.Jwts
+﻿using System.ComponentModel;
+
+namespace JwtAuth.Identity.Models
 {
     public class JwtTokenClaimType
     {
@@ -13,5 +15,13 @@
     {
         ACCESS,
         REFRESH
+    }
+
+    public enum JwtTokenAudience
+    {
+        WEB = 0,
+        MOBILE,
+        DESKTOP,
+        SERVICE
     }
 }

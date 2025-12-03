@@ -1,4 +1,4 @@
-﻿using JwtAuth.Identity.Jwts;
+﻿using JwtAuth.Identity.Models;
 using System.Text.Json.Serialization;
 
 namespace JwtAuth.Security.Jwts
@@ -21,6 +21,8 @@ namespace JwtAuth.Security.Jwts
     }
     public class JwtTokenClaims
     {
+        public string UserUuid { get; set; } = "";
+
         public string Value { get; set; } = "";
         
         public JwtTokenType Type { get; set; }
@@ -30,6 +32,10 @@ namespace JwtAuth.Security.Jwts
         public string Jti { get; set; } = "";
         
         public string AccessTokenJti { get; set; } = "";
+
+        public string Issuer { get; set; } = "";
+
+        public string Audience { get; set; } = "";
     }
 
     public class UserJwtTokenInfo

@@ -1,7 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 
-namespace auth.Database.Entity;
+namespace JwtAuth.Database.Entity;
 
 public partial class Ward
 {

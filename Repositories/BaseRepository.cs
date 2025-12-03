@@ -1,5 +1,5 @@
-﻿using auth.Database;
-using auth.Extensions;
+﻿using auth.Extensions;
+using JwtAuth.Database;
 
 namespace auth.Repositories
 {

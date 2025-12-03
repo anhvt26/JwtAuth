@@ -1,4 +1,6 @@
-﻿namespace auth.Config
+﻿using JwtAuth.Config;
+
+namespace auth.Config
 {
     public class GlobalSettings
     {
