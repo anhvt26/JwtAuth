@@ -1,4 +1,6 @@
-﻿using JwtAuth.Security.Jwts;
+﻿using JwtAuth.ExceptionHandling;
+using JwtAuth.ResponseWrapping;
+using JwtAuth.Security.Jwts;
 using Newtonsoft.Json;
 using System.ComponentModel;
 using System.Security.Claims;
@@ -29,6 +31,33 @@ namespace JwtAuth.Utilities
         {
             var userInfo = user.FindFirst(ClaimTypes.UserData)?.Value;
             return userInfo?.DeserializeJson<UserJwtTokenInfo>();
+        }
+
+        public static WrappedResponse<object> HandleException(this Exception exception, ILogger logger)
+        {
+            WrappedResponse<object> response;
+
+            switch (exception)
+            {
+                case ErrorException appException:
+                    logger.LogError(appException, "Application error occurred: {Message}", appException.Message);
+                    response = new WrappedResponse<object>
+                    {
+                        Error = new AppError(appException)
+                    };
+                    break;
+
+                default:
+                    logger.LogError(exception, "Unhandled exception occurred.");
+                    response = new WrappedResponse<object>
+                    {
+                        Error = new AppError(new ErrorException(ErrorCode.OTHER))
+                    };
+                    break;
+            }
+
+            response.Error.Trace = exception.StackTrace ?? "";
+            return response;
         }
     }
 }

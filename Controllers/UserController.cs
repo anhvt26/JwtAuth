@@ -9,7 +9,6 @@ namespace JwtAuth.Controllers
     public class UserController(IUserService userService) : BaseController
     {
         [HttpPost("get-all")]
-        [Authorised(false)]
         public IActionResult GetAll()
         { 
             var users = userService.GetAll();
@@ -17,7 +16,6 @@ namespace JwtAuth.Controllers
         }
 
         [HttpPost("get-user")]
-        [Authorised(false)]
         public IActionResult GetUser(string uuid)
         {
             return Ok(userService.GetUser(uuid, User.GetUserTokenInfo()));

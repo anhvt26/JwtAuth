@@ -5,6 +5,7 @@ using auth.Services;
 using JwtAuth.Config;
 using JwtAuth.Database;
 using JwtAuth.Identity;
+using JwtAuth.ResponseWrapping;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.OpenApi.Models;
 
@@ -38,6 +39,8 @@ builder.Services.AddScoped<IUserService, UserService>();
 builder.Services.AddScoped<IAuthService, AuthService>();
 
 var app = builder.Build();
+app.UseMiddleware<ErrorHandlerMiddleware>();
+app.UseRouting();
 
 // Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())
