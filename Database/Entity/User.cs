@@ -18,8 +18,6 @@ public partial class User
 
     public string? ShortName { get; set; }
 
-    public int Status { get; set; }
-
     public string? Username { get; set; }
 
     public string? Password { get; set; }
@@ -40,9 +38,13 @@ public partial class User
 
     public int? Count { get; set; }
 
-    public string? Address { get; set; }
+    public string Address { get; set; } = null!;
+
+    public int Status { get; set; }
 
     public DateTime CreatedAt { get; set; }
 
     public DateTime UpdatedAt { get; set; }
+
+    public virtual ICollection<UserDevice> UserDevices { get; set; } = new List<UserDevice>();
 }

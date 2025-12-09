@@ -16,11 +16,15 @@ public partial class AppDbContext : DbContext
 
     public virtual DbSet<AdministrativeUnit> AdministrativeUnits { get; set; }
 
+    public virtual DbSet<Device> Devices { get; set; }
+
     public virtual DbSet<Province> Provinces { get; set; }
 
     public virtual DbSet<Role> Roles { get; set; }
 
     public virtual DbSet<User> Users { get; set; }
+
+    public virtual DbSet<UserDevice> UserDevices { get; set; }
 
     public virtual DbSet<Ward> Wards { get; set; }
 
@@ -91,6 +95,62 @@ public partial class AppDbContext : DbContext
             entity.Property(e => e.ShortNameEn)
                 .HasMaxLength(255)
                 .HasColumnName("short_name_en")
+                .UseCollation("utf8mb4_unicode_520_ci");
+        });
+
+        modelBuilder.Entity<Device>(entity =>
+        {
+            entity.HasKey(e => e.Id).HasName("PRIMARY");
+
+            entity.ToTable("devices");
+
+            entity.HasIndex(e => e.Uuid, "uuid").IsUnique();
+
+            entity.Property(e => e.Id)
+                .HasColumnType("bigint(20)")
+                .HasColumnName("id");
+            entity.Property(e => e.Browser)
+                .HasMaxLength(255)
+                .HasColumnName("browser")
+                .UseCollation("utf8mb4_unicode_520_ci");
+            entity.Property(e => e.CreatedAt)
+                .HasDefaultValueSql("current_timestamp()")
+                .HasColumnType("timestamp")
+                .HasColumnName("created_at");
+            entity.Property(e => e.DeviceId)
+                .HasMaxLength(64)
+                .IsFixedLength()
+                .HasColumnName("device_id")
+                .UseCollation("utf8mb4_unicode_520_ci");
+            entity.Property(e => e.DeviceName)
+                .HasMaxLength(255)
+                .HasComment("ip 17")
+                .HasColumnName("device_name")
+                .UseCollation("utf8mb4_unicode_520_ci");
+            entity.Property(e => e.DeviceType)
+                .HasMaxLength(255)
+                .HasComment("mobile, desktop, tablet")
+                .HasColumnName("device_type")
+                .UseCollation("utf8mb4_unicode_520_ci");
+            entity.Property(e => e.OS)
+                .HasMaxLength(255)
+                .HasComment("operating system")
+                .HasColumnName("o_s")
+                .UseCollation("utf8mb4_unicode_520_ci");
+            entity.Property(e => e.Status)
+                .HasDefaultValueSql("'1'")
+                .HasColumnType("int(11)")
+                .HasColumnName("status");
+            entity.Property(e => e.UpdatedAt)
+                .ValueGeneratedOnAddOrUpdate()
+                .HasDefaultValueSql("current_timestamp()")
+                .HasColumnType("timestamp")
+                .HasColumnName("updated_at");
+            entity.Property(e => e.Uuid)
+                .HasMaxLength(36)
+                .HasDefaultValueSql("uuid()")
+                .IsFixedLength()
+                .HasColumnName("uuid")
                 .UseCollation("utf8mb4_unicode_520_ci");
         });
 
@@ -254,6 +314,82 @@ public partial class AppDbContext : DbContext
             entity.Property(e => e.WardId)
                 .HasMaxLength(20)
                 .HasColumnName("ward_id");
+        });
+
+        modelBuilder.Entity<UserDevice>(entity =>
+        {
+            entity.HasKey(e => e.Id).HasName("PRIMARY");
+
+            entity.ToTable("user_devices");
+
+            entity.HasIndex(e => e.DeviceUuid, "user_device__device_fk");
+
+            entity.HasIndex(e => e.UserUuid, "user_device__user_fk");
+
+            entity.HasIndex(e => e.Uuid, "uuid").IsUnique();
+
+            entity.Property(e => e.Id)
+                .HasColumnType("bigint(20)")
+                .HasColumnName("id");
+            entity.Property(e => e.CreatedAt)
+                .HasDefaultValueSql("current_timestamp()")
+                .HasColumnType("timestamp")
+                .HasColumnName("created_at");
+            entity.Property(e => e.DeviceUuid)
+                .HasMaxLength(36)
+                .IsFixedLength()
+                .HasColumnName("device_uuid")
+                .UseCollation("utf8mb4_unicode_520_ci");
+            entity.Property(e => e.ExpiresAt)
+                .HasColumnType("timestamp")
+                .HasColumnName("expires_at");
+            entity.Property(e => e.IpAddress)
+                .HasMaxLength(50)
+                .HasColumnName("ip_address")
+                .UseCollation("utf8mb4_unicode_ci");
+            entity.Property(e => e.IsRevoked)
+                .HasComment("0 - not revoked, 1 - revoked")
+                .HasColumnType("int(2)")
+                .HasColumnName("is_revoked");
+            entity.Property(e => e.RefreshRootExpireAt)
+                .HasColumnType("timestamp")
+                .HasColumnName("refresh_root_expire_at");
+            entity.Property(e => e.RefreshToken)
+                .HasColumnType("text")
+                .HasColumnName("refresh_token")
+                .UseCollation("utf8mb4_unicode_520_ci");
+            entity.Property(e => e.UpdatedAt)
+                .ValueGeneratedOnAddOrUpdate()
+                .HasDefaultValueSql("current_timestamp()")
+                .HasColumnType("timestamp")
+                .HasColumnName("updated_at");
+            entity.Property(e => e.UserAgent)
+                .HasColumnType("text")
+                .HasColumnName("user_agent")
+                .UseCollation("utf8mb4_unicode_520_ci");
+            entity.Property(e => e.UserUuid)
+                .HasMaxLength(36)
+                .IsFixedLength()
+                .HasColumnName("user_uuid")
+                .UseCollation("utf8mb4_unicode_520_ci");
+            entity.Property(e => e.Uuid)
+                .HasMaxLength(36)
+                .HasDefaultValueSql("uuid()")
+                .IsFixedLength()
+                .HasColumnName("uuid")
+                .UseCollation("utf8mb4_unicode_520_ci");
+
+            entity.HasOne(d => d.DeviceUu).WithMany(p => p.UserDevices)
+                .HasPrincipalKey(p => p.Uuid)
+                .HasForeignKey(d => d.DeviceUuid)
+                .OnDelete(DeleteBehavior.ClientSetNull)
+                .HasConstraintName("user_device__device_fk");
+
+            entity.HasOne(d => d.UserUu).WithMany(p => p.UserDevices)
+                .HasPrincipalKey(p => p.Uuid)
+                .HasForeignKey(d => d.UserUuid)
+                .OnDelete(DeleteBehavior.ClientSetNull)
+                .HasConstraintName("user_device__user_fk");
         });
 
         modelBuilder.Entity<Ward>(entity =>
