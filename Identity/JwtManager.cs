@@ -5,6 +5,7 @@ using JwtAuth.ExceptionHandling;
 using JwtAuth.Identity.Models;
 using JwtAuth.Security.Jwts;
 using JwtAuth.Utilities;
+using System.Globalization;
 
 namespace JwtAuth.Identity
 {
@@ -17,11 +18,9 @@ namespace JwtAuth.Identity
                 .WithJsonSerializer(new JWT.Serializers.JsonNetSerializer())
                 .WithUrlEncoder(new JwtBase64UrlEncoder())
                 .WithSecret(GlobalSettings.AppSettings.JwtSecret + tokenTimes);
-            if (mustVerifySignature)
-                builder = builder.MustVerifySignature();
-            else
-                builder = builder.WithVerifySignature(false);
-            return builder;
+
+            return mustVerifySignature ? builder.MustVerifySignature()
+                                       : builder.WithVerifySignature(false);
         }
 
         private static string GenerateJwt(
@@ -30,25 +29,42 @@ namespace JwtAuth.Identity
             long lifeTime,
             string audience,
             bool musverifySignature = true,
+            DateTime? refreshRootExpireAt = null,
             int tokenTimes = 0)
         {
             var expiresAt = DateTimeOffset.UtcNow.AddSeconds(lifeTime).ToUnixTimeSeconds();
 
             var builder = GetJwtBuilder(musverifySignature, tokenTimes)
                 .AddClaims(claims)
-                .AddClaim("type", type)
+                .AddClaim("type", (int)type)
                 .AddClaim("expireAt", expiresAt)
                 .AddClaim("expireIn", lifeTime)
                 .AddClaim("jti", Guid.NewGuid().ToString())
                 .AddClaim("iss", GlobalSettings.AppSettings.JwtIssuer)
                 .AddClaim("aud", audience);
 
+            if (refreshRootExpireAt.HasValue)
+                builder = builder.AddClaim("rootExpire",
+                    refreshRootExpireAt.Value.ToUniversalTime().ToString("o"));
+
             return builder.Encode();
         }
 
-        public static string GenerateAccessToken(List<KeyValuePair<string, object>> claims, string audience, bool mustVerifySignature = true, int tokenTimes = 0)
+        public static string GenerateAccessToken(
+            List<KeyValuePair<string, object>> claims,
+            string audience,
+            bool mustVerifySignature = true,
+            int tokenTimes = 0)
         {
-            return GenerateJwt(claims, JwtTokenType.ACCESS, JwtToken.AccessTokenLifetime, audience, mustVerifySignature, tokenTimes);
+            return GenerateJwt(
+                claims,
+                JwtTokenType.Access,
+                JwtToken.AccessTokenLifetime,
+                audience,
+                mustVerifySignature,
+                null,
+                tokenTimes
+            );
         }
 
         private static Dictionary<string, object> Claims(string token, bool mustVerifySignature = true, int tokenTimes = 0)
@@ -60,28 +76,49 @@ namespace JwtAuth.Identity
         public static JwtTokenClaims ClaimTokens(string token, bool mustVerifySignature = true, int tokenTimes = 0)
         {
             var claims = Claims(token, mustVerifySignature, tokenTimes);
-            var type = (JwtTokenType)int.Parse(claims["type"].ToString()!);
-            var expiresAt = long.Parse(claims["expireAt"].ToString() ?? "0");
-            var jti = claims["jti"].ToString() ?? "";
-            var accessTokenJti = "";
-            var iss = claims["iss"].ToString() ?? "";
-            var aud = claims["aud"].ToString() ?? "";
 
-            try
+            // type
+            JwtTokenType type = JwtTokenType.Access;
+            if (claims.TryGetValue("type", out var tObj))
+                type = (JwtTokenType)Convert.ToInt32(tObj);
+
+            // expires
+            long expiresAt = claims.TryGetValue("expireAt", out var expObj)
+                ? Convert.ToInt64(expObj)
+                : 0;
+
+            string jti = claims.TryGetValue("jti", out var jtiObj)
+                ? jtiObj?.ToString() ?? ""
+                : "";
+
+            string iss = claims.TryGetValue("iss", out var issObj)
+                ? issObj?.ToString() ?? ""
+                : "";
+
+            string aud = claims.TryGetValue("aud", out var audObj)
+                ? audObj?.ToString() ?? ""
+                : "";
+
+            // root expire
+            DateTime? rootExpire = null;
+            if (claims.TryGetValue("rootExpire", out var rootObj) &&
+                rootObj is string s &&
+                DateTime.TryParse(s, null, DateTimeStyles.RoundtripKind, out var dt))
             {
-                accessTokenJti = claims["access_token_jti"].ToString() ?? "";
+                rootExpire = dt;
             }
-            catch {/*ignore*/}
 
+            // access_token_jti (refresh token only)
+            string accessTokenJti = claims.TryGetValue("access_token_jti", out var atjObj)
+                ? atjObj?.ToString() ?? ""
+                : "";
+
+            // user_token_info
             UserJwtTokenInfo? userTokenInfo = null;
-            try
+            if (claims.TryGetValue("user_token_info", out var jsonObj) && jsonObj is string jsonStr)
             {
-                if (claims.TryGetValue("user_token_info", out var json) && json is string s)
-                {
-                    userTokenInfo = s.DeserializeJson<UserJwtTokenInfo>();
-                }
+                userTokenInfo = jsonStr.DeserializeJson<UserJwtTokenInfo>();
             }
-            catch { /*ignore*/ }
 
             return new JwtTokenClaims
             {
@@ -92,28 +129,45 @@ namespace JwtAuth.Identity
                 AccessTokenJti = accessTokenJti,
                 Issuer = iss,
                 Audience = aud,
-                UserUuid = userTokenInfo?.UserUuid ?? ""
+                UserUuid = userTokenInfo?.UserUuid ?? "",
+                RefreshRootExpireAt = rootExpire
             };
         }
 
         public static string GenerateRefreshToken(
-            string accessToken, 
+            string accessToken,
             List<KeyValuePair<string, object>> userClaims,
             string audience,
-            bool mustVerifySignature = true, int tokenTimes = 0)
+            bool mustVerifySignature = true,
+            DateTime? refreshRootExpireAt = null,
+            int tokenTimes = 0)
         {
+            var accessClaims = ClaimTokens(accessToken, mustVerifySignature, tokenTimes);
+
             var claims = new List<KeyValuePair<string, object>>
             {
-                new("access_token_jti", ClaimTokens(accessToken, mustVerifySignature, tokenTimes).Jti)
+                new("access_token_jti", accessClaims.Jti)
             };
 
-            return GenerateJwt(claims.Concat(userClaims), JwtTokenType.REFRESH, JwtToken.RefreshTokenLifetime, audience, mustVerifySignature, tokenTimes);
+            return GenerateJwt(
+                claims.Concat(userClaims),
+                JwtTokenType.Refresh,
+                JwtToken.RefreshTokenLifetime,
+                audience,
+                mustVerifySignature,
+                refreshRootExpireAt,
+                tokenTimes
+            );
         }
+
         public static UserJwtTokenInfo ClaimUserTokenInfo(string token, bool mustVerifySignature = true, int tokenTimes = 0)
         {
             var claims = Claims(token, mustVerifySignature, tokenTimes);
-            var userTokenInfo = claims.FirstOrDefault(c => c.Key == "user_token_info").Value as string ?? "";
-            return userTokenInfo.DeserializeJson<UserJwtTokenInfo>() ?? new UserJwtTokenInfo();
+
+            if (claims.TryGetValue("user_token_info", out var json) && json is string s)
+                return s.DeserializeJson<UserJwtTokenInfo>() ?? new UserJwtTokenInfo();
+
+            return new UserJwtTokenInfo();
         }
 
         public static JwtTokenClaims ValidateToken(
@@ -125,23 +179,38 @@ namespace JwtAuth.Identity
         {
             var tokenClaims = ClaimTokens(token, mustVerifySignature, tokenTimes);
 
+            // 1. Kiểu token đúng không?
             if (tokenClaims.Type != expectedType)
-                throw new ErrorException(ErrorCode.UN_AUTHORIZED, $"Token type không hợp lệ. Expected: {expectedType}, Actual: {tokenClaims.Type}");
+                throw new ErrorException(ErrorCode.UN_AUTHORIZED,
+                    $"Token type không hợp lệ. Expected: {expectedType}, Actual: {tokenClaims.Type}");
 
             var now = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
-
+            // 2. Hết hạn chưa?
             if (tokenClaims.ExpiresAt < now)
                 throw new ErrorException(ErrorCode.UN_AUTHORIZED, "Token đã hết hạn");
 
+            // 3. Issuer phải đúng
             if (!string.Equals(tokenClaims.Issuer, GlobalSettings.AppSettings.JwtIssuer, StringComparison.Ordinal))
                 throw new ErrorException(ErrorCode.UN_AUTHORIZED, "Issuer không hợp lệ");
 
+            // 4. Audience phải đúng
             if (!string.Equals(tokenClaims.Audience, expectedAudience, StringComparison.Ordinal))
                 throw new ErrorException(ErrorCode.UN_AUTHORIZED, "Audience không hợp lệ");
 
-            if (tokenClaims.Type == JwtTokenType.REFRESH && string.IsNullOrWhiteSpace(tokenClaims.AccessTokenJti))
-                throw new ErrorException(ErrorCode.UN_AUTHORIZED, "Refresh token thiếu access_token_jti");
+            // 5. Nếu là refresh token thì phải có access_token_jti
+            if (tokenClaims.Type == JwtTokenType.Refresh)
+            {
+                if (string.IsNullOrWhiteSpace(tokenClaims.AccessTokenJti))
+                    throw new ErrorException(ErrorCode.UN_AUTHORIZED, "Refresh token thiếu access_token_jti");
+            }
 
+            // 6. Root refresh expired?
+            if (tokenClaims.Type == JwtTokenType.Refresh &&
+                tokenClaims.RefreshRootExpireAt.HasValue &&
+                tokenClaims.RefreshRootExpireAt.Value.ToUniversalTime() < DateTime.UtcNow)
+            {
+                throw new ErrorException(ErrorCode.UN_AUTHORIZED, "Refresh root đã hết hạn");
+            }
             return tokenClaims;
         }
     }

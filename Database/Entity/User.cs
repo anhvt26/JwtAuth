@@ -26,6 +26,8 @@ public partial class User
 
     public int TokenTimes { get; set; }
 
+    public DateTime? RefreshRootExpireAt { get; set; }
+
     public string? Code { get; set; }
 
     public string? PhoneNumber { get; set; }

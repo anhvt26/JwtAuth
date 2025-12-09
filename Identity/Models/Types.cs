@@ -13,15 +13,15 @@ namespace JwtAuth.Identity.Models
 
     public enum JwtTokenType
     {
-        ACCESS,
-        REFRESH
+        Access,
+        Refresh
     }
 
     public enum JwtTokenAudience
     {
-        WEB = 0,
-        MOBILE,
-        DESKTOP,
-        SERVICE
+        Web = 0,
+        Mobile,
+        Desktop,
+        Service
     }
 }

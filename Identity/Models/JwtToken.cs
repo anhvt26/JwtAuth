@@ -11,6 +11,9 @@ namespace JwtAuth.Security.Jwts
         [JsonIgnore]
         public static int RefreshTokenLifetime = 7 * 24 * 60 * 60;
 
+        [JsonIgnore]
+        public static int RefreshRootTokenLifetime = 30 * 24 * 60 * 60;
+
         public string AccessToken { get; init; } = "";
 
         public string RefreshToken { get; init; } = "";
@@ -36,6 +39,8 @@ namespace JwtAuth.Security.Jwts
         public string Issuer { get; set; } = "";
 
         public string Audience { get; set; } = "";
+
+        public DateTime? RefreshRootExpireAt { get; set; }
     }
 
     public class UserJwtTokenInfo
@@ -51,5 +56,7 @@ namespace JwtAuth.Security.Jwts
         public int AccountType { get; set; }
         
         public string PhoneNumber { get; set; } = "";
+
+        public DateTime? RefreshRootExpireAt { get; set; }
     }
 }

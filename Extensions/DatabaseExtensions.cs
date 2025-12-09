@@ -5,7 +5,7 @@ namespace auth.Extensions
 {
     public static class DatabaseExtensions
     {
-        private static TDbContext GetDbContext<TDbContext>(string connectionString = "") where TDbContext : DbContext
+        public static TDbContext GetDbContext<TDbContext>(string connectionString = "") where TDbContext : DbContext
         {
             var connString = string.IsNullOrEmpty(connectionString) ? GlobalSettings.ConnectionString : connectionString;
 

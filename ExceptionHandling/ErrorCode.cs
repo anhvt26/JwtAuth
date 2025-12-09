@@ -85,6 +85,8 @@ namespace JwtAuth.ExceptionHandling
         [Description("Lỗi API TUYA.")]
         TUYA_API_ERROR,
         [Description("Hành động không được phép.")]
-        NOT_ALLOWED
+        NOT_ALLOWED,
+        [Description("Phiên đăng nhập đã hết hạn.")]
+        SESSION_EXPIRED
     }
 }

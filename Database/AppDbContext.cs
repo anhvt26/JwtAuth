@@ -219,6 +219,9 @@ public partial class AppDbContext : DbContext
             entity.Property(e => e.ProvinceId)
                 .HasMaxLength(20)
                 .HasColumnName("province_id");
+            entity.Property(e => e.RefreshRootExpireAt)
+                .HasColumnType("timestamp")
+                .HasColumnName("refresh_root_expire_at");
             entity.Property(e => e.ShortName)
                 .HasMaxLength(255)
                 .HasColumnName("short_name");
@@ -227,7 +230,6 @@ public partial class AppDbContext : DbContext
                 .HasColumnType("int(11)")
                 .HasColumnName("status");
             entity.Property(e => e.TokenTimes)
-                .HasDefaultValueSql("'1'")
                 .HasColumnType("int(11)")
                 .HasColumnName("token_times");
             entity.Property(e => e.Type)

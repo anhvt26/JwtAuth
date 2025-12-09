@@ -33,7 +33,6 @@ public class AuthMiddleware(RequestDelegate next)
             var user = ValidateAndGetUser(context, logger, allowedAudiences);
             AttachPrincipal(context, user);
         }
-
         await next(context);
     }
 
@@ -83,7 +82,7 @@ public class AuthMiddleware(RequestDelegate next)
         var token = ExtractBearerToken(context);
 
         if (string.IsNullOrWhiteSpace(token))
-            throw new ErrorException(ErrorCode.UN_AUTHORIZED, "Token thiếu hoặc không hợp lệ");
+            throw new ErrorException(ErrorCode.UN_AUTHORIZED, "Thiếu token");
 
         var tokenClaims = JwtManager.ClaimTokens(token, false);
 

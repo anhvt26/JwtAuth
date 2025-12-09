@@ -9,5 +9,7 @@
         public DateTime AccessExpiresAt { get; init; }
 
         public DateTime RefreshExpiresAt { get; init; }
+
+        public DateTime? RefreshRootExpireAt { get; set; }
     }
 }
