@@ -55,7 +55,7 @@ namespace JwtAuth.Identity
                     throw new ErrorException(ErrorCode.USERNAME_OR_PASSWORD_INCORRECT);
                 }
 
-                user.RefreshRootExpireAt = DateTime.Now.AddSeconds(JwtToken.RefreshRootTokenLifetime);
+                //user.RefreshRootExpireAt = DateTime.Now.AddSeconds(JwtToken.RefreshRootTokenLifetime);
 
                 var userTokenInfo = new UserJwtTokenInfo
                 {
@@ -64,7 +64,7 @@ namespace JwtAuth.Identity
                     TokenTimes = user.TokenTimes,
                     AccountType = user.Type,
                     PhoneNumber = user.PhoneNumber ?? "",
-                    RefreshRootExpireAt = user.RefreshRootExpireAt
+                    //RefreshRootExpireAt = user.RefreshRootExpireAt
                 };
                 return userTokenInfo;
             });
@@ -132,8 +132,8 @@ namespace JwtAuth.Identity
                 throw new ErrorException(ErrorCode.INVALID_TOKEN, "Loại token không hợp lệ");
             }
 
-            if (dbUser.RefreshRootExpireAt <= DateTime.UtcNow) 
-                throw new ErrorException(ErrorCode.SESSION_EXPIRED, "Phiên đăng nhập hết hạn");
+            //if (dbUser.RefreshRootExpireAt <= DateTime.UtcNow) 
+            //    throw new ErrorException(ErrorCode.SESSION_EXPIRED, "Phiên đăng nhập hết hạn");
             var tokenTimes = dbUser.TokenTimes;
             JwtManager.ValidateToken(refreshToken, refreshClaim.Audience, JwtTokenType.Refresh, tokenTimes: tokenTimes);
 

@@ -22,10 +22,6 @@ public partial class User
 
     public string? Password { get; set; }
 
-    public int TokenTimes { get; set; }
-
-    public DateTime? RefreshRootExpireAt { get; set; }
-
     public string? Code { get; set; }
 
     public string? PhoneNumber { get; set; }
@@ -37,6 +33,8 @@ public partial class User
     public string? WardId { get; set; }
 
     public int? Count { get; set; }
+
+    public int TokenTimes { get; set; }
 
     public string Address { get; set; } = null!;
 
