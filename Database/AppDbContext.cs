@@ -117,11 +117,6 @@ public partial class AppDbContext : DbContext
                 .HasDefaultValueSql("current_timestamp()")
                 .HasColumnType("timestamp")
                 .HasColumnName("created_at");
-            entity.Property(e => e.DeviceId)
-                .HasMaxLength(64)
-                .IsFixedLength()
-                .HasColumnName("device_id")
-                .UseCollation("utf8mb4_unicode_520_ci");
             entity.Property(e => e.DeviceName)
                 .HasMaxLength(255)
                 .HasComment("ip 17")

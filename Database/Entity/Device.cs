@@ -9,8 +9,6 @@ public partial class Device
 
     public string Uuid { get; set; } = null!;
 
-    public string DeviceId { get; set; } = null!;
-
     /// <summary>
     /// mobile, desktop, tablet
     /// </summary>
