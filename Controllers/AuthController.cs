@@ -30,10 +30,18 @@ namespace JwtAuth.Controllers
             return Ok(authService.RefreshToken(token));
         }
 
-        [HttpPost("log-out")]
-        public IActionResult Logout()
+        [HttpPost("log-out-all")]
+        public IActionResult LogoutAll()
         {
-            authService.Logout(User.GetUserTokenInfo()!);
+            authService.LogoutAll(User.GetUserTokenInfo()!);
+            return Ok();
+        }
+
+        [HttpPost("log-out-locally")]
+        public IActionResult LogoutLocally()
+        {
+            var token = HttpContext.Request.Headers.Authorization.ToString()[7..];
+            authService.LogoutLocally(User.GetUserTokenInfo()!, token);
             return Ok();
         }
     }

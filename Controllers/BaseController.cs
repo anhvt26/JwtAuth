@@ -1,4 +1,5 @@
-﻿using JwtAuth.Identity;
+﻿using JwtAuth.Attributtes;
+using JwtAuth.Identity;
 using JwtAuth.ResponseWrapping;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
@@ -9,4 +10,5 @@ namespace JwtAuth.Controllers;
 [WrapResponse]
 [Authorised]
 [AllowedAudiences("web", "mobile")]
+[NormalizeEmptyStrings]
 public class BaseController : ControllerBase;

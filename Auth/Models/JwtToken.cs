@@ -3,7 +3,7 @@ using System.Text.Json.Serialization;
 
 namespace JwtAuth.Security.Jwts
 {
-    public class JwtToken
+    public class JwtToken // original model for tokens
     {
         [JsonIgnore]
         public static int AccessTokenLifetime  = 1 * 24 * 60 * 60; 
@@ -22,7 +22,7 @@ namespace JwtAuth.Security.Jwts
 
         public DateTime RefreshExpiresAt { get; init; }
     }
-    public class JwtTokenClaims
+    public class JwtTokenClaims //claims from token
     {
         public string UserUuid { get; set; } = "";
 
@@ -40,10 +40,14 @@ namespace JwtAuth.Security.Jwts
 
         public string Audience { get; set; } = "";
 
+        public string? DeviceUuid { get; set; }
+
+        public int IsRevoked { get; set; }
+
         public DateTime? RefreshRootExpireAt { get; set; }
     }
 
-    public class UserJwtTokenInfo
+    public class UserJwtTokenInfo // user info stored in token, key: "user_token_info"
     {
         public string UserUuid { get; set; } = "";
         
@@ -56,6 +60,8 @@ namespace JwtAuth.Security.Jwts
         public int AccountType { get; set; }
         
         public string PhoneNumber { get; set; } = "";
+
+        public string? DeviceUuid { get; set; }
 
         public DateTime? RefreshRootExpireAt { get; set; }
     }

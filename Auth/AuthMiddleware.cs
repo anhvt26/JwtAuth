@@ -80,6 +80,7 @@ public class AuthMiddleware(RequestDelegate next)
             // Step 3: validate FULL (verify signature + expiry + issuer + type + audience)
             var fullClaims = JwtManager.ValidateToken(
                 token,
+                unsafeClaims.IsRevoked,
                 expectedAudience: unsafeClaims.Audience,
                 expectedType: JwtTokenType.Access,
                 mustVerifySignature: true,
@@ -124,6 +125,7 @@ public class AuthMiddleware(RequestDelegate next)
         // Validate FULL
         JwtManager.ValidateToken(
             token,
+            unsafeClaims.IsRevoked,
             expectedAudience: unsafeClaims.Audience,
             expectedType: JwtTokenType.Access,
             mustVerifySignature: true,

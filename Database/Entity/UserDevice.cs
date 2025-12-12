@@ -13,9 +13,9 @@ public partial class UserDevice
 
     public string DeviceUuid { get; set; } = null!;
 
-    public string RefreshToken { get; set; } = null!;
+    public string? RefreshToken { get; set; }
 
-    public DateTime ExpiresAt { get; set; }
+    public DateTime? ExpiresAt { get; set; }
 
     public string? IpAddress { get; set; }
 

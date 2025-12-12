@@ -29,7 +29,7 @@ namespace JwtAuth.Identity
             long lifeTime,
             string audience,
             bool musverifySignature = true,
-            DateTime? refreshRootExpireAt = null,
+            int isRevoked = 0,
             int tokenTimes = 0)
         {
             var expiresAt = DateTimeOffset.UtcNow.AddSeconds(lifeTime).ToUnixTimeSeconds();
@@ -41,11 +41,12 @@ namespace JwtAuth.Identity
                 .AddClaim("expireIn", lifeTime)
                 .AddClaim("jti", Guid.NewGuid().ToString())
                 .AddClaim("iss", GlobalSettings.AppSettings.JwtIssuer)
-                .AddClaim("aud", audience);
+                .AddClaim("aud", audience)
+                .AddClaim("is_revoked", isRevoked);
 
-            if (refreshRootExpireAt.HasValue)
-                builder = builder.AddClaim("rootExpire",
-                    refreshRootExpireAt.Value.ToUniversalTime().ToString("o"));
+            //if (refreshRootExpireAt.HasValue)
+            //    builder = builder.AddClaim("rootExpire",
+            //        refreshRootExpireAt.Value.ToUniversalTime().ToString("o"));
 
             return builder.Encode();
         }
@@ -62,7 +63,6 @@ namespace JwtAuth.Identity
                 JwtToken.AccessTokenLifetime,
                 audience,
                 mustVerifySignature,
-                null,
                 tokenTimes
             );
         }
@@ -99,6 +99,11 @@ namespace JwtAuth.Identity
                 ? audObj?.ToString() ?? ""
                 : "";
 
+            // is_revoked
+            int isRevoked = claims.TryGetValue("is_revoked", out var irObj)
+                ? Convert.ToInt32(irObj)
+                : 0;
+
             // root expire
             DateTime? rootExpire = null;
             if (claims.TryGetValue("rootExpire", out var rootObj) &&
@@ -130,7 +135,9 @@ namespace JwtAuth.Identity
                 Issuer = iss,
                 Audience = aud,
                 UserUuid = userTokenInfo?.UserUuid ?? "",
-                RefreshRootExpireAt = rootExpire
+                RefreshRootExpireAt = rootExpire,
+                DeviceUuid = userTokenInfo!.DeviceUuid,
+                IsRevoked = isRevoked
             };
         }
 
@@ -155,7 +162,6 @@ namespace JwtAuth.Identity
                 JwtToken.RefreshTokenLifetime,
                 audience,
                 mustVerifySignature,
-                refreshRootExpireAt,
                 tokenTimes
             );
         }
@@ -172,6 +178,7 @@ namespace JwtAuth.Identity
 
         public static JwtTokenClaims ValidateToken(
             string token,
+            int isRevoked,
             string expectedAudience,
             JwtTokenType expectedType,
             bool mustVerifySignature = true,
@@ -179,32 +186,36 @@ namespace JwtAuth.Identity
         {
             var tokenClaims = ClaimTokens(token, mustVerifySignature, tokenTimes);
 
-            // 1. Kiểu token đúng không?
+            // Kiểu token đúng không?
             if (tokenClaims.Type != expectedType)
                 throw new ErrorException(ErrorCode.UN_AUTHORIZED,
                     $"Token type không hợp lệ. Expected: {expectedType}, Actual: {tokenClaims.Type}");
 
+            // Revoked?
+            if (tokenClaims.IsRevoked == 1)
+                throw new ErrorException(ErrorCode.UN_AUTHORIZED, "Token đã bị thu hồi");
+
             var now = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
-            // 2. Hết hạn chưa?
+            // Hết hạn chưa?
             if (tokenClaims.ExpiresAt < now)
                 throw new ErrorException(ErrorCode.UN_AUTHORIZED, "Token đã hết hạn");
 
-            // 3. Issuer phải đúng
+            // Issuer phải đúng
             if (!string.Equals(tokenClaims.Issuer, GlobalSettings.AppSettings.JwtIssuer, StringComparison.Ordinal))
                 throw new ErrorException(ErrorCode.UN_AUTHORIZED, "Issuer không hợp lệ");
 
-            // 4. Audience phải đúng
+            // Audience phải đúng
             if (!string.Equals(tokenClaims.Audience, expectedAudience, StringComparison.Ordinal))
                 throw new ErrorException(ErrorCode.UN_AUTHORIZED, "Audience không hợp lệ");
 
-            // 5. Nếu là refresh token thì phải có access_token_jti
+            // Nếu là refresh token thì phải có access_token_jti
             if (tokenClaims.Type == JwtTokenType.Refresh)
             {
                 if (string.IsNullOrWhiteSpace(tokenClaims.AccessTokenJti))
                     throw new ErrorException(ErrorCode.UN_AUTHORIZED, "Refresh token thiếu access_token_jti");
             }
 
-            // 6. Root refresh expired?
+            // Root refresh expired?
             if (tokenClaims.Type == JwtTokenType.Refresh &&
                 tokenClaims.RefreshRootExpireAt.HasValue &&
                 tokenClaims.RefreshRootExpireAt.Value.ToUniversalTime() < DateTime.UtcNow)

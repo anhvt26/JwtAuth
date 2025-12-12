@@ -9,5 +9,7 @@ namespace JwtAuth.Identity.Models
 
         [Required]
         public string Password { get; set; } = "";
+
+        public DeviceInfo Device { get; set; } = new DeviceInfo();
     }
 }
